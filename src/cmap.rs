@@ -43,7 +43,7 @@ impl CMap {
       }
     }
 
-    return true;
+    true
   }
 
   fn put_recursive(node: &mut CMapNode, key: &Vec<u8>, value: &Vec<u8>, level: usize) -> CMapNode {
@@ -74,8 +74,8 @@ impl CMap {
               false => { 
                 let mut new_internal_node = CMapNode::new_internal_node();
 
-                Self::put_recursive(&mut new_internal_node, &child_node_copy.key, &child_node_copy.value, level + 1);
-                Self::put_recursive(&mut new_internal_node, key, value, level + 1);
+                new_internal_node = Self::put_recursive(&mut new_internal_node, &child_node_copy.key, &child_node_copy.value, level + 1);
+                new_internal_node = Self::put_recursive(&mut new_internal_node, key, value, level + 1);
                 
                 let new_internal_node_ptr = Arc::new(AtomicPtr::new(Box::into_raw(Box::new(new_internal_node))));
                 node_copy.children[position] = new_internal_node_ptr;
@@ -87,7 +87,7 @@ impl CMap {
       }
     }
 
-    return node_copy;
+    node_copy
   }
 
   pub fn get(&self, key: Vec<u8>) -> Option<Vec<u8>> {

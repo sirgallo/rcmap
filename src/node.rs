@@ -37,7 +37,7 @@ impl CMapNode {
 
   pub fn get_position(&self, hash: u32, level: usize) -> usize {
     let sparse_idx = get_sparse_index(hash, level);
-    let mask = 1 << sparse_idx - 1;
+    let mask = (1 << sparse_idx) - 1;
     let isolated_bits = self.bitmap & mask;
     
     calculate_hamming_weight(isolated_bits) as usize
@@ -54,7 +54,7 @@ impl CMapNode {
   pub fn extend_table(&mut self, position: usize, new_node: CMapNode) {
     let table_size = calculate_hamming_weight(self.bitmap) as usize;
     let mut new_table = Vec::with_capacity(table_size);
-  
+
     for existing_arc in self.children.iter().take(position) {
       new_table.push(existing_arc.clone());
     }
@@ -64,7 +64,7 @@ impl CMapNode {
     for existing_arc in self.children.iter().skip(position) {
       new_table.push(existing_arc.clone());
     }
-  
+
     self.children = new_table;
   }
   
