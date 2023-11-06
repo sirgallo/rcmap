@@ -1,5 +1,6 @@
 use rcmap::cmap::CMap;
 
+
 #[test]
 fn test_cmap() {
   let map = CMap::new();

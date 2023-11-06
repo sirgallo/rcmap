@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::consts::{BIT_CHUNK_SIZE, HASH_CHUNKS};
 
 
@@ -18,12 +16,4 @@ pub fn get_index(hash: u32, level: usize) -> u32 {
   let mask = slots - 1;
   
   hash >> shift_size & mask
-}
-
-pub fn clone_from_raw<T>(ptr: *mut T) -> T where T:Clone {
-  unsafe { return (*ptr).clone() }
-}
-
-pub fn arc_from_raw<T>(ptr: *mut T) -> Arc<T> {
-  unsafe { Arc::from_raw(ptr) }
 }
