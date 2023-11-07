@@ -41,7 +41,7 @@ impl CMap {
     true
   }
 
-  fn put_recursive(node: &mut CMapNode, key: &Vec<u8>, value: &Vec<u8>, level: usize) -> CMapNode {
+  fn put_recursive(node: &CMapNode, key: &Vec<u8>, value: &Vec<u8>, level: usize) -> CMapNode {
     let hash = Self::calculate_hash_for_current_level(key, level);
     let index = get_sparse_index(hash, level);
 
@@ -71,8 +71,8 @@ impl CMap {
               false => { 
                 let mut new_internal_node = CMapNode::new_internal_node();
 
-                new_internal_node = Self::put_recursive(&mut new_internal_node, &child_node.key, &child_node.value, level + 1);
-                new_internal_node = Self::put_recursive(&mut new_internal_node, key, value, level + 1);
+                new_internal_node = Self::put_recursive(&new_internal_node, &child_node.key, &child_node.value, level + 1);
+                new_internal_node = Self::put_recursive(&new_internal_node, key, value, level + 1);
                 
                 let new_internal_node_ptr = Arc::new(AtomicPtr::new(Box::into_raw(Box::new(new_internal_node))));
                 node_copy.children[position] = new_internal_node_ptr;
@@ -80,7 +80,7 @@ impl CMap {
             }
           }
           false => { 
-            child_node = Self::put_recursive(&mut child_node, key, value, level + 1); 
+            child_node = Self::put_recursive(&child_node, key, value, level + 1); 
             
             let updated_child_node_ptr = Arc::new(AtomicPtr::new(Box::into_raw(Box::new(child_node))));
             node_copy.children[position] = updated_child_node_ptr;
@@ -121,8 +121,8 @@ impl CMap {
   pub fn del(&self, key: Vec<u8>) -> bool {
     loop {
       let root_ptr = self.root.load(Ordering::Acquire);
-      let mut root_clone = unsafe { (*root_ptr).clone() };
-      let path_copy = Self::del_recursive(&mut root_clone, &key, 0);
+      let root_clone = unsafe { (*root_ptr).clone() };
+      let path_copy = Self::del_recursive(&root_clone, &key, 0);
       
       match path_copy {
         Some(path_copy) => {
@@ -133,14 +133,14 @@ impl CMap {
             Err(_) => { continue; }
           }
         }
-        None => { continue; }
+        None => { break; }
       }
     }
 
     true
   }
 
-  fn del_recursive(node: &mut CMapNode, key: &Vec<u8>, level: usize) -> Option<CMapNode> {
+  fn del_recursive(node: &CMapNode, key: &Vec<u8>, level: usize) -> Option<CMapNode> {
     let hash = Self::calculate_hash_for_current_level(key, level);
     let index = get_sparse_index(hash, level);
 
@@ -152,7 +152,7 @@ impl CMap {
         let position = node_copy.get_position(hash, level);
 
         let child_node_ptr = node_copy.children[position].load(Ordering::Acquire);
-        let child_node = unsafe { &mut *child_node_ptr };
+        let child_node = unsafe { &*child_node_ptr };
 
         match child_node.is_leaf && key == &child_node.key {
           true => { 
