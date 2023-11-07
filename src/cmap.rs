@@ -12,6 +12,7 @@ pub struct CMap {
   pub root: Arc<AtomicPtr<CMapNode>>, 
 }
 
+
 impl CMap {
   pub fn new() -> Self {
     let root_node = Box::new(CMapNode::new_internal_node());
@@ -26,16 +27,13 @@ impl CMap {
 
     loop {
       let root_ptr = self.root.load(Ordering::Acquire);
-      let mut root_clone = unsafe { (*root_ptr).clone() };
+      let root_clone = unsafe { &mut *root_ptr };
 
-      let path_copy = Self::put_recursive(&mut root_clone, &key_clone, &value_clone, 0);
+      let path_copy = Self::put_recursive(root_clone, &key_clone, &value_clone, 0);
       let new_root_ptr = Box::into_raw(Box::new(path_copy));
       
       match self.root.compare_exchange_weak(root_ptr, new_root_ptr, Ordering::Relaxed, Ordering::Relaxed) {
-        Ok(_) => { 
-          let _deallocated = unsafe { Box::from_raw(root_ptr) }; 
-          break; 
-        }
+        Ok(_) => { break; }
         Err(_) => {
           let _deallocated = unsafe { Box::from_raw(new_root_ptr) }; 
           continue; 
@@ -62,19 +60,21 @@ impl CMap {
       }
       false => {
         let child_node_ptr = node_copy.children[position].load(Ordering::Acquire);
-        let mut child_node_copy = unsafe { (*child_node_ptr).clone() };
+        let mut child_node = unsafe { (*child_node_ptr).clone() };
 
-        match child_node_copy.is_leaf {
+        match child_node.is_leaf {
           true => {
-            match key == &child_node_copy.key {
+            match key == &child_node.key {
               true => { 
-                child_node_copy.value = value.clone();
-                node_copy.children[position] = Arc::new(AtomicPtr::new(child_node_ptr));
+                child_node.value = value.clone();
+                
+                let updated_child_node_ptr = Arc::new(AtomicPtr::new(Box::into_raw(Box::new(child_node))));
+                node_copy.children[position] = updated_child_node_ptr;
               }
               false => { 
                 let mut new_internal_node = CMapNode::new_internal_node();
 
-                new_internal_node = Self::put_recursive(&mut new_internal_node, &child_node_copy.key, &child_node_copy.value, level + 1);
+                new_internal_node = Self::put_recursive(&mut new_internal_node, &child_node.key, &child_node.value, level + 1);
                 new_internal_node = Self::put_recursive(&mut new_internal_node, key, value, level + 1);
                 
                 let new_internal_node_ptr = Arc::new(AtomicPtr::new(Box::into_raw(Box::new(new_internal_node))));
@@ -82,7 +82,12 @@ impl CMap {
               }
             }
           }
-          false => { Self::put_recursive(&mut child_node_copy, key, value, level + 1); }
+          false => { 
+            child_node = Self::put_recursive(&mut child_node, key, value, level + 1); 
+            
+            let updated_child_node_ptr = Arc::new(AtomicPtr::new(Box::into_raw(Box::new(child_node))));
+            node_copy.children[position] = updated_child_node_ptr;
+          }
         }
       }
     }
@@ -106,11 +111,11 @@ impl CMap {
       false => {
         let position = node.get_position(hash, level);
         let child_node_ptr = node.children[position].load(Ordering::Acquire);
-        let child_node_copy = unsafe { (*child_node_ptr).clone() };
+        let child_node = unsafe { (*child_node_ptr).clone() };
 
-        match child_node_copy.is_leaf && key == &child_node_copy.key {
-          true => { return Some(child_node_copy.value.clone()); }
-          false => { return Self::get_recursive(&child_node_copy, key, level + 1); }
+        match child_node.is_leaf && key == &child_node.key {
+          true => { return Some(child_node.value.clone()); }
+          false => { return Self::get_recursive(&child_node, key, level + 1); }
         }
       }
     }
@@ -152,9 +157,9 @@ impl CMap {
         let position = node_copy.get_position(hash, level);
 
         let child_node_ptr = node_copy.children[position].load(Ordering::Acquire);
-        let mut child_node_copy = unsafe { (*child_node_ptr).clone() };
+        let child_node = unsafe { &mut *child_node_ptr };
 
-        match child_node_copy.is_leaf && key == &child_node_copy.key {
+        match child_node.is_leaf && key == &child_node.key {
           true => { 
             node_copy.set_bit(index);
             node_copy.shrink_table(position);
@@ -162,7 +167,7 @@ impl CMap {
             return Some(node_copy);
           }
           false => {
-            let node_on_path = Self::del_recursive(&mut child_node_copy, key, level + 1);
+            let node_on_path = Self::del_recursive(child_node, key, level + 1);
 
             match node_on_path {
               Some(new_node) => { 
@@ -178,6 +183,27 @@ impl CMap {
           }
         }
       }
+    }
+  }
+
+  pub fn print(&self) {
+    let root_ptr = self.root.load(Ordering::Acquire);
+    let root_clone = unsafe { (*root_ptr).clone() };
+
+    Self::print_recursive(&root_clone, 0);
+  }
+
+  fn print_recursive(node: &CMapNode, level: usize) {
+    println!("level {}", level);
+
+    let node_children = &node.children;
+
+    for (idx, child_node_arc) in node_children.into_iter().enumerate() {
+      let child_node_ptr = child_node_arc.load(Ordering::Acquire);
+      let child_node = unsafe { &*child_node_ptr };
+
+      println!("idx {}, node {:?}", idx, child_node);
+      Self::print_recursive(child_node, level + 1);
     }
   }
 
