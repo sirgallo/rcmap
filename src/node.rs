@@ -71,7 +71,7 @@ impl CMapNode {
   
   pub fn shrink_table(&mut self, position: usize) {
     let table_size = calculate_hamming_weight(self.bitmap) as usize;
-    let mut new_table = Vec::with_capacity(table_size);
+    let mut new_table= Vec::with_capacity(table_size);
 
     for existing_arc in self.children.iter().take(position) {
       new_table.push(existing_arc.clone());

@@ -22,14 +22,11 @@ impl CMap {
   }
 
   pub fn put(&self, key: Vec<u8>, value: Vec<u8>) -> bool {
-    let key_clone = key.clone();
-    let value_clone = value.clone();
-
     loop {
       let root_ptr = self.root.load(Ordering::Acquire);
       let root_clone = unsafe { &mut *root_ptr };
 
-      let path_copy = Self::put_recursive(root_clone, &key_clone, &value_clone, 0);
+      let path_copy = Self::put_recursive(root_clone, &key, &value, 0);
       let new_root_ptr = Box::into_raw(Box::new(path_copy));
       
       match self.root.compare_exchange_weak(root_ptr, new_root_ptr, Ordering::Relaxed, Ordering::Relaxed) {
@@ -114,7 +111,7 @@ impl CMap {
         let child_node = unsafe { (*child_node_ptr).clone() };
 
         match child_node.is_leaf && key == &child_node.key {
-          true => { return Some(child_node.value.clone()); }
+          true => { return Some(child_node.value.to_vec()); }
           false => { return Self::get_recursive(&child_node, key, level + 1); }
         }
       }
@@ -122,12 +119,10 @@ impl CMap {
   }
 
   pub fn del(&self, key: Vec<u8>) -> bool {
-    let key_clone = key.clone();
-
     loop {
       let root_ptr = self.root.load(Ordering::Acquire);
       let mut root_clone = unsafe { (*root_ptr).clone() };
-      let path_copy = Self::del_recursive(&mut root_clone, &key_clone, 0);
+      let path_copy = Self::del_recursive(&mut root_clone, &key, 0);
       
       match path_copy {
         Some(path_copy) => {
@@ -211,6 +206,6 @@ impl CMap {
     let curr_chunk = level / HASH_CHUNKS;
     let seed = (curr_chunk + 1) as u32;
   
-    murmur(key.clone(), seed)
+    murmur(key, seed)
   }
 }

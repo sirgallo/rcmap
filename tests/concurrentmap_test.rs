@@ -40,7 +40,7 @@ fn test_concurrent_cmap() {
     let kv_clone = kv.clone();
     
     spawn(move || {
-      let put_ok = cmap_clone.put(kv_clone.key.clone(), kv_clone.value.clone());
+      let put_ok = cmap_clone.put(kv_clone.key, kv_clone.value);
       // println!("is ok? {}", putok);
       assert!(put_ok);
     })
@@ -61,7 +61,7 @@ fn test_concurrent_cmap() {
       match val {
         Some(exists) => {
           // println!("val {:?}", exists);
-          assert!(exists == key_clone.value.clone());
+          assert!(exists == key_clone.value);
         }
         None => { panic!("value in map was none type") }
       }
@@ -77,7 +77,7 @@ fn test_concurrent_cmap() {
     let key_clone = kv.clone();
 
     spawn(move || {
-      let del_ok = cmap_clone.del(key_clone.key.clone());
+      let del_ok = cmap_clone.del(key_clone.key);
       assert!(del_ok);
     })
   });

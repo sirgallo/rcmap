@@ -5,7 +5,7 @@ const C32_4: u32 = 0x1b873593;
 const C32_5: u32 = 0x5c4bcea9;
 
 
-pub fn murmur(data: Vec<u8>, seed: u32) -> u32 {
+pub fn murmur(data: &Vec<u8>, seed: u32) -> u32 {
   let mut hash = seed;
   let length = data.len() as u32;
   let tot_four_byte_chunks = length / 4;
